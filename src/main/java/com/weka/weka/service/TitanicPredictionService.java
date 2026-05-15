@@ -48,9 +48,14 @@ public class TitanicPredictionService {
 	}
 
 	private String selectedInsight(boolean survived, double probability, List<String> rules) {
-		String outcome = survived ? "survived" : "did not survive";
-		String ruleSummary = rules.isEmpty() ? "No matching rule could be extracted." : "Selected rule: " + rules.get(0);
-		return "Prediction result: passenger " + outcome + " with probability " + Math.round(probability * 100.0) + "% . " + ruleSummary;
+		String outcomeText = survived ? "sobreviviria" : "no sobreviviria";
+		String probabilityLabel = survived ? "probabilidad de supervivencia" : "probabilidad de no supervivencia";
+		String ruleSummary = rules.isEmpty()
+				? "No se pudo extraer una regla principal del modelo."
+				: "Regla principal: " + rules.get(0);
+		return "Resultado: esta persona " + outcomeText + ". "
+				+ "El modelo estima una " + probabilityLabel + " de " + Math.round(probability * 100.0) + "%. "
+				+ ruleSummary;
 	}
 
 	private Instance buildInstance(Instances structure, PassengerProfileRequest request) {

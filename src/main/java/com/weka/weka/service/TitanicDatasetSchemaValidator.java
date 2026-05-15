@@ -90,8 +90,14 @@ public class TitanicDatasetSchemaValidator {
 				.filter(line -> !line.isBlank() && !line.startsWith("%"))
 				.findFirst()
 				.orElse("");
-		if (firstLine.equalsIgnoreCase(String.join(",", EXPECTED_COLUMNS))) {
-			return DatasetSchemaValidationResult.invalid("arff", "ARFF data section contains a CSV header line instead of rows", EXPECTED_COLUMNS, List.of(firstLine));
+		if (firstLine.isBlank() || isCsvHeaderLine(firstLine)) {
+			boolean hasRealRows = dataSection.lines()
+					.map(String::trim)
+					.filter(line -> !line.isBlank() && !line.startsWith("%"))
+					.anyMatch(line -> !isCsvHeaderLine(line));
+			if (!hasRealRows) {
+				return DatasetSchemaValidationResult.invalid("arff", "ARFF file has no data rows", EXPECTED_COLUMNS, List.of());
+			}
 		}
 
 		List<String> actualColumns = readArffAttributeNames(content);
@@ -139,6 +145,10 @@ public class TitanicDatasetSchemaValidator {
 
 	private List<String> normalizeColumns(List<String> columns) {
 		return columns.stream().map(column -> column.trim().toLowerCase(Locale.ROOT)).toList();
+	}
+
+	private boolean isCsvHeaderLine(String line) {
+		return line.equalsIgnoreCase(String.join(",", EXPECTED_COLUMNS));
 	}
 
 	private String detectFormat(String fileName) {

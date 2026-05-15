@@ -23,6 +23,20 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class TitanicDatasetReader {
+	private static final List<String> TITANIC_COLUMNS = List.of(
+			"PassengerId",
+			"Survived",
+			"Pclass",
+			"Name",
+			"Sex",
+			"Age",
+			"SibSp",
+			"Parch",
+			"Ticket",
+			"Fare",
+			"Cabin",
+			"Embarked"
+	);
 
 	public TitanicDataset read(MultipartFile file) {
 		if (file == null || file.isEmpty()) {
@@ -66,19 +80,58 @@ public class TitanicDatasetReader {
 			file.transferTo(tempFile);
 			ArffLoader loader = new ArffLoader();
 			loader.setFile(tempFile.toFile());
-			Instances instances = loader.getDataSet();
-			if (instances.classIndex() < 0 && instances.numAttributes() > 1) {
-				instances.setClassIndex(1);
+			try {
+				Instances instances = loader.getDataSet();
+				if (instances.classIndex() < 0 && instances.numAttributes() > 1) {
+					instances.setClassIndex(1);
+				}
+
+				List<TitanicCsvRow> rows = new ArrayList<>();
+				for (int index = 0; index < instances.numInstances(); index++) {
+					rows.add(toRow(instances.instance(index)));
+				}
+
+				return new TitanicDataset(file.getOriginalFilename(), rows);
+			} catch (IOException arffException) {
+				return readArffAsCsvFallback(file);
 			}
+		} finally {
+			Files.deleteIfExists(tempFile);
+		}
+	}
+
+	private TitanicDataset readArffAsCsvFallback(MultipartFile file) throws IOException {
+		String content = new String(file.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+		String dataSection = extractDataSection(content);
+		if (dataSection == null || dataSection.isBlank()) {
+			throw new IOException("ARFF file has no readable data section");
+		}
+
+		String csvContent = String.join(",", TITANIC_COLUMNS) + System.lineSeparator() + dataSection.lines()
+				.map(String::trim)
+				.filter(line -> !line.isBlank() && !line.startsWith("%"))
+				.filter(line -> !line.equalsIgnoreCase(String.join(",", TITANIC_COLUMNS)))
+				.reduce((left, right) -> left + System.lineSeparator() + right)
+				.orElse("");
+
+		if (csvContent.isBlank()) {
+			throw new IOException("ARFF file has no readable data rows");
+		}
+
+		try (Reader reader = new InputStreamReader(new java.io.ByteArrayInputStream(csvContent.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
+				CSVParser parser = CSVFormat.DEFAULT.builder()
+						.setHeader()
+						.setSkipHeaderRecord(true)
+						.setTrim(true)
+						.build()
+						.parse(reader)) {
 
 			List<TitanicCsvRow> rows = new ArrayList<>();
-			for (int index = 0; index < instances.numInstances(); index++) {
-				rows.add(toRow(instances.instance(index)));
+			for (CSVRecord record : parser) {
+				rows.add(toRow(record));
 			}
 
 			return new TitanicDataset(file.getOriginalFilename(), rows);
-		} finally {
-			Files.deleteIfExists(tempFile);
 		}
 	}
 
@@ -114,6 +167,15 @@ public class TitanicDatasetReader {
 				readString(instance, 10),
 				readString(instance, 11)
 		);
+	}
+
+	private String extractDataSection(String content) {
+		String lowerContent = content.toLowerCase(Locale.ROOT);
+		int dataIndex = lowerContent.lastIndexOf("@data");
+		if (dataIndex < 0) {
+			return null;
+		}
+		return content.substring(dataIndex + 5).trim();
 	}
 
 	private boolean looksLikeArff(MultipartFile file) {

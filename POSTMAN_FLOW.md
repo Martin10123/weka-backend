@@ -246,6 +246,69 @@ Devuelve la prediccion original, la modificada y la diferencia de probabilidad.
 7. `explain`
 8. `what-if`
 
+## Flujo sugerido para frontend
+
+Este es el orden recomendado para la UI del frontend, para que el usuario no se pierda y el sistema tenga siempre el contexto necesario:
+
+1. Seleccionar y validar archivo.
+  - El usuario elige `titanic.csv` o `titanic.arff`.
+  - El frontend llama a `POST /datasets/validate`.
+  - Si el archivo no es valido, se muestra el error y no se habilita el siguiente paso.
+
+2. Subir dataset.
+  - Cuando la validacion es correcta, el frontend llama a `POST /datasets/upload`.
+  - Se debe mostrar `sourceFileName` y `totalRows`.
+  - En esta etapa ya se puede guardar el dataset como base activa de la sesion.
+
+3. Previsualizar los datos.
+  - El frontend llama a `GET /datasets/preview?limit=5`.
+  - Se muestran algunas filas en una tabla para confirmar que el parseo fue correcto.
+  - Si la vista previa no coincide con lo esperado, el usuario puede volver a cargar otro archivo.
+
+4. Normalizar dataset.
+  - El frontend llama a `POST /datasets/normalize`.
+  - Se muestran `usedRows`, `discardedRows` y una muestra de filas limpias.
+  - Esta vista sirve para confirmar que los datos estan listos para entrenamiento.
+
+5. Entrenar modelo.
+  - El frontend llama a `POST /models/train`.
+  - Se muestran `crossValidationAccuracy`, `summary` e `insight`.
+  - Tambien conviene mostrar el estado de generacion del modelo y la ruta del archivo `.model`.
+
+6. Hacer prediccion.
+  - Con el modelo ya entrenado, el usuario completa el formulario de perfil del pasajero.
+  - El frontend llama a `POST /predict`.
+  - Se muestran `survived`, `probability`, `rules`, `insight` y `narrative`.
+
+7. Generar explicacion narrativa.
+  - Si el usuario quiere una narrativa mas detallada, el frontend llama a `POST /explain`.
+  - Este paso depende de que exista el modelo entrenado y de que `CEREBRAS_API_KEY` este configurada.
+  - Si el backend responde con fallback local, el frontend debe mostrarlo como explicacion alternativa.
+
+8. Ejecutar simulacion what-if.
+  - El frontend reutiliza el mismo perfil base y cambia un solo campo.
+  - Luego llama a `POST /what-if`.
+  - Se comparan `original`, `modified` y `probabilityDelta` para mostrar el impacto del cambio.
+
+### Flujo resumido de UI
+
+- Paso 1: cargar archivo.
+- Paso 2: validar.
+- Paso 3: subir.
+- Paso 4: previsualizar.
+- Paso 5: normalizar.
+- Paso 6: entrenar.
+- Paso 7: predecir.
+- Paso 8: explicar.
+- Paso 9: probar escenarios alternativos con what-if.
+
+### Reglas practicas para el frontend
+
+- No habilitar prediccion, explicacion o what-if hasta haber entrenado el modelo.
+- Si falla `predict`, `explain` o `what-if`, mostrar primero un aviso de que debe ejecutarse `POST /models/train`.
+- Mantener visible el ultimo archivo cargado y el estado actual del proceso.
+- Mostrar mensajes claros de exito y error en cada paso.
+
 ## Nota
 
 Si `predict`, `explain` o `what-if` fallan por falta de modelo, corre primero `POST /models/train`.

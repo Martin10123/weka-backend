@@ -148,7 +148,7 @@ public class TitanicRuleExtractionService {
 		};
 	}
 
-	private String stripQuotes(String value) {
+	private static String stripQuotes(String value) {
 		String stripped = value;
 		if (stripped.startsWith("\"") && stripped.endsWith("\"") && stripped.length() >= 2) {
 			stripped = stripped.substring(1, stripped.length() - 1);
@@ -158,10 +158,73 @@ public class TitanicRuleExtractionService {
 
 	private record RuleCandidate(List<String> conditions, String predictedClass) {
 		private String toReadableRule() {
+			String predicted = translatePredictedClass(predictedClass);
 			if (conditions.isEmpty()) {
-				return "then " + predictedClass;
+				return "entonces " + predicted;
 			}
-			return "if " + String.join(" AND ", conditions) + " then " + predictedClass;
+			List<String> translatedConditions = conditions.stream().map(c -> translateCondition(c)).toList();
+			return "si " + String.join(" y ", translatedConditions) + " entonces " + predicted;
+		}
+
+		private String translateCondition(String condition) {
+			Matcher matcher = CONDITION_PATTERN.matcher(condition.trim());
+			if (!matcher.matches()) {
+				return condition;
+			}
+			String attr = matcher.group(1).trim().toLowerCase(Locale.ROOT);
+			String op = matcher.group(2).trim();
+			String val = stripQuotes(matcher.group(3).trim());
+
+			switch (attr) {
+				case "sex":
+					val = switch (val.toLowerCase(Locale.ROOT)) {
+						case "male" -> "masculino";
+						case "female" -> "femenino";
+						default -> val;
+					};
+					attr = "sexo";
+					break;
+				case "passenger_class":
+					val = switch (val.toUpperCase(Locale.ROOT)) {
+						case "FIRST" -> "primera";
+						case "SECOND" -> "segunda";
+						case "THIRD" -> "tercera";
+						default -> val.toLowerCase(Locale.ROOT);
+					};
+				attr = "clase";
+					break;
+				case "traveling_alone":
+					attr = "viajaba solo";
+					val = val.equalsIgnoreCase("true") ? "si" : "no";
+					break;
+				case "embarked":
+					// common ports: S, C, Q
+					val = switch (val.toUpperCase(Locale.ROOT)) {
+						case "S" -> "Southampton";
+						case "C" -> "Cherbourg";
+						case "Q" -> "Queenstown";
+						default -> val;
+					};
+				attr = "puerto de embarque";
+					break;
+				case "age":
+					attr = "edad";
+					break;
+				default:
+					break;
+			}
+
+			String operatorWord = op;
+			return attr + " " + operatorWord + " " + val;
+		}
+
+		private String translatePredictedClass(String cls) {
+			if (cls == null) return "(desconocido)";
+			return switch (cls.toLowerCase(Locale.ROOT)) {
+				case "survived" -> "sobreviviría";
+				case "not_survived" -> "no sobreviviría";
+				default -> cls;
+			};
 		}
 	}
 }
