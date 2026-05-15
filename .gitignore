@@ -36,3 +36,4 @@ target/
 *.jar
 *.class
 *.log
+data/models/*.model
