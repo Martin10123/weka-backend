@@ -16,7 +16,7 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
         // allow local frontend during development
-        config.setAllowedOrigins(List.of("http://localhost:5174", "http://localhost:5173"));
+        config.setAllowedOrigins(List.of("http://localhost:5174", "http://localhost:5173", "http://localhost:3000"));
         config.addAllowedHeader(CorsConfiguration.ALL);
         config.addAllowedMethod(CorsConfiguration.ALL);
 

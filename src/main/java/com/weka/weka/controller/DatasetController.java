@@ -6,6 +6,8 @@ import com.weka.weka.contract.response.DatasetPreviewResponse;
 import com.weka.weka.contract.response.DatasetUploadResponse;
 import com.weka.weka.contract.response.DatasetPreviewRow;
 import com.weka.weka.contract.response.DatasetValidationResponse;
+import com.weka.weka.domain.titanic.EmbarkationPort;
+import com.weka.weka.domain.titanic.Sex;
 import com.weka.weka.domain.titanic.TitanicDataset;
 import com.weka.weka.service.TitanicDatasetReader;
 import com.weka.weka.service.TitanicDatasetNormalizer;
@@ -13,7 +15,6 @@ import com.weka.weka.service.TitanicDatasetSchemaValidator;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -56,7 +57,7 @@ public class DatasetController {
 		);
 	}
 
-	@GetMapping(value = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@PostMapping(value = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public DatasetPreviewResponse preview(
 			@RequestParam("file") MultipartFile file,
 			@RequestParam(name = "limit", defaultValue = "5") int limit
@@ -70,14 +71,14 @@ public class DatasetController {
 						row.survived(),
 						row.pclass(),
 						row.name(),
-						row.sex(),
+						toSpanishSex(row.sex()),
 						row.age(),
 						row.sibSp(),
 						row.parch(),
 						row.ticket(),
 						row.fare(),
 						row.cabin(),
-						row.embarked()
+						toSpanishEmbarkation(row.embarked())
 				))
 				.toList();
 
@@ -99,10 +100,10 @@ public class DatasetController {
 						row.passengerId(),
 						row.survived(),
 						row.passengerClass().name(),
-						row.sex().toCsvValue(),
+						toSpanishSex(row.sex()),
 						row.age(),
 						row.travelingAlone(),
-						row.embarked() == null ? null : row.embarked().getCsvValue()
+						toSpanishEmbarkation(row.embarked())
 				))
 				.toList();
 
@@ -128,5 +129,48 @@ public class DatasetController {
 			return "csv";
 		}
 		return "unknown";
+	}
+
+	private String toSpanishSex(String rawSex) {
+		if (rawSex == null || rawSex.isBlank()) {
+			return rawSex;
+		}
+		try {
+			return toSpanishSex(Sex.fromCsvValue(rawSex));
+		} catch (IllegalArgumentException exception) {
+			return rawSex;
+		}
+	}
+
+	private String toSpanishSex(Sex sex) {
+		if (sex == null) {
+			return null;
+		}
+		return switch (sex) {
+			case MALE -> "masculino";
+			case FEMALE -> "femenino";
+		};
+	}
+
+	private String toSpanishEmbarkation(String rawEmbarked) {
+		if (rawEmbarked == null || rawEmbarked.isBlank()) {
+			return rawEmbarked;
+		}
+		try {
+			return toSpanishEmbarkation(EmbarkationPort.fromCsvValue(rawEmbarked));
+		} catch (IllegalArgumentException exception) {
+			return rawEmbarked;
+		}
+	}
+
+	private String toSpanishEmbarkation(EmbarkationPort embarked) {
+		if (embarked == null) {
+			return null;
+		}
+		return switch (embarked) {
+			case SOUTHAMPTON -> "Southampton";
+			case CHERBOURG -> "Cherbourg";
+			case QUEENSTOWN -> "Queenstown";
+		};
 	}
 }

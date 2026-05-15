@@ -39,7 +39,7 @@ Devuelve nombre del archivo y cantidad total de filas.
 
 ## 3. Previsualizar dataset
 
-`GET /datasets/preview?limit=5`
+`POST /datasets/preview?limit=5`
 
 Body: `form-data`
 
@@ -245,6 +245,104 @@ Devuelve la prediccion original, la modificada y la diferencia de probabilidad.
 6. `predict`
 7. `explain`
 8. `what-if`
+
+---
+
+## Sidebar aparte: Football Match Intelligence System
+
+Esta sidebar es independiente de Titanic. Usa el modelo de fútbol para predecir `FTResult` y no reutiliza los endpoints de supervivencia.
+
+## 1. Entrenar modelo de resultado
+
+`POST /football/models/train`
+
+Body: `form-data`
+
+- `file`: `Matches.csv` o un `.arff` equivalente
+
+Debe entrenar el RandomForest con estas columnas:
+
+- `Division`
+- `HomeElo`
+- `AwayElo`
+- `Form3Home`
+- `Form3Away`
+- `Form5Home`
+- `Form5Away`
+- `OddHome`
+- `OddDraw`
+- `OddAway`
+- `FTResult`
+
+**Response:**
+```json
+{
+  "sourceFileName": "Matches.csv",
+  "modelFilePath": "data\\models\\football-matches-randomforest.model",
+  "totalRows": 200000,
+  "usedRows": 198500,
+  "discardedRows": 1500,
+  "crossValidationAccuracy": 58.42,
+  "insight": "Entrenamiento completado con ...",
+  "summary": "RandomForest cross-validation summary ..."
+}
+```
+
+## 2. Probar predicción
+
+`POST /football/predict`
+
+Body: `raw JSON`
+
+```json
+{
+  "division": "F1",
+  "homeElo": 1686.34,
+  "awayElo": 1586.57,
+  "form3Home": 0,
+  "form3Away": 0,
+  "form5Home": 0,
+  "form5Away": 0,
+  "homeOdds": 1.65,
+  "drawOdds": 3.3,
+  "awayOdds": 4.3
+}
+```
+
+Devuelve la clase predicha (`Home Win`, `Draw` o `Away Win`) y las probabilidades por clase.
+
+**Response:**
+```json
+{
+  "predictedResult": "Home Win",
+  "homeWinProbability": 0.62,
+  "drawProbability": 0.21,
+  "awayWinProbability": 0.17,
+  "confidence": 0.62,
+  "insight": "Prediccion: Home Win con 62.0% de confianza..."
+}
+```
+
+## Orden recomendado para esta sidebar
+
+1. `football/models/train`
+2. `football/predict`
+
+## Flujo sugerido para frontend
+
+1. Sidebar de Titanic.
+  - Mantiene el flujo original para supervivencia.
+  - No comparte formularios ni respuestas con fútbol.
+
+2. Sidebar de Football.
+  - Un formulario para entrenar el modelo con `Matches.csv`.
+  - Otro formulario independiente para predecir `FTResult`.
+  - El usuario cambia de sidebar, no de modo dentro de la misma vista.
+
+3. Separación visual.
+  - Titanic muestra supervivencia, explicaciones y what-if.
+  - Football muestra resultado del partido y probabilidades por clase.
+  - Cada sidebar conserva su propio contexto y sus propios botones.
 
 ## Flujo sugerido para frontend
 
